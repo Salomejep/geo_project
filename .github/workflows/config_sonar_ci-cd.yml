@@ -14,9 +14,10 @@ env:
   ARTIFACTORY_URL: ${{ secrets.ARTIFACT_URL }}
   SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
   SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-  ECR_ROLE: ${{ secrets.ECR_ACESS_ROLE }}
+  AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}
   AWS_REGION: ${{ secrets.AWS_REGION }}
   VAULT_URL: ${{ secrets.VAULT_URL }}
+  VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
 
   # Variables with default values
   HELM_REPO: ${{ secrets.HELM_REPO || 'utrains-helm' }}
@@ -54,7 +55,7 @@ jobs:
       - name: Upload JAR file
         uses: actions/upload-artifact@v4
         with:
-          name: geo_app-jar
+          name: dev-jar
           path: target/*.jar
 
   sonar:
@@ -91,7 +92,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ env.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ env.SONAR_HOST_URL }}
-        run: mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.projectKey=geo_app -Dsonar.qualitygate.wait=true # Replace 'geo_app' with your actual project key
+        run: mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.projectKey=dev -Dsonar.qualitygate.wait=true # Replace 'dev' with your actual project key
       
     
     
@@ -111,13 +112,13 @@ jobs:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ env.ECR_ROLE }}
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Download JAR file artifact
         uses: actions/download-artifact@v4
         with:
-          name: geo_app-jar
+          name: dev-jar
           path: target/
 
       - name: Login to Amazon ECR
@@ -126,13 +127,13 @@ jobs:
 
       - name: Build Docker image
         run: |
-          docker build -t geo_app:${{ github.sha }} .
+          docker build -t dev:${{ github.sha }} .
       
       # Trivy Scan for Vulnerabilities
       - name: Scan Docker image with Trivy
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: geo_app:${{ github.sha }}
+          image-ref: dev:${{ github.sha }}
           format: table  # can also use 'json' or 'sarif'
           #exit-code: 1   # fail job if vulnerabilities are found
           severity: CRITICAL,HIGH  # only report high/critical issues
@@ -140,12 +141,12 @@ jobs:
       - name: Tag image for ECR
         run: |
           APP_VERSION=$(grep -m2 '<version>' pom.xml | tail -1 | grep -oP '(?<=>).*(?=<)')
-          docker tag geo_app:${{ github.sha }} ${{ steps.login-ecr.outputs.registry }}/geo_app:$APP_VERSION
+          docker tag dev:${{ github.sha }} ${{ steps.login-ecr.outputs.registry }}/dev:$APP_VERSION
 
       - name: Push Docker image to ECR
         run: |
           APP_VERSION=$(grep -m2 '<version>' pom.xml | tail -1 | grep -oP '(?<=>).*(?=<)')
-          docker push ${{ steps.login-ecr.outputs.registry }}/geo_app:$APP_VERSION
+          docker push ${{ steps.login-ecr.outputs.registry }}/dev:$APP_VERSION
 
   deploy:
     runs-on: ubuntu-latest
@@ -160,7 +161,7 @@ jobs:
       - name: Download JAR file artifact
         uses: actions/download-artifact@v4
         with:
-          name: geo_app-jar
+          name: dev-jar
           path: target/
 
       # Load secrets from Vault and set as env variables for rest of job
@@ -206,7 +207,7 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ env.ECR_ROLE }}
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR
@@ -234,7 +235,7 @@ jobs:
       - name: Compose image repo URL
         id: image
         run: |
-          IMAGE_REPO=${{ steps.aws-account.outputs.account_id }}.${{ env.ECR_PATH }}.${{ env.AWS_REGION }}.${{ env.AWS_DOMAIN }}/geo_app
+          IMAGE_REPO=${{ steps.aws-account.outputs.account_id }}.${{ env.ECR_PATH }}.${{ env.AWS_REGION }}.${{ env.AWS_DOMAIN }}/dev
           echo "IMAGE_REPO=$IMAGE_REPO" >> $GITHUB_ENV
           echo "image_repo=$IMAGE_REPO" >> $GITHUB_OUTPUT
 
