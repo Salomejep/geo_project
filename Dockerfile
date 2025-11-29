@@ -1,4 +1,4 @@
-FROM openjdk:17
+FROM eclipse-temurin:17-jre-alpine
 
 EXPOSE 8087
 ENV APP_HOME /usr/src/app
