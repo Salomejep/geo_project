@@ -296,7 +296,7 @@ jobs:
         env:
           MAVEN_USERNAME_A: ${{ env.MAVEN_USERNAME_A }}
           MAVEN_PASSWORD_A: ${{ env.MAVEN_PASSWORD_A }}
-          ARTIFACTORY_URL: ${{ secrets.ARTIFACT_URL }}
+          ARTIFACTORY_URL: ${{ secrets.ARTIFACTORY_URL }}
         run: |
           helm_tar=${CHART_NAME}-0.1.0.tgz
           curl -v --user $MAVEN_USERNAME_A:$MAVEN_PASSWORD_A \
