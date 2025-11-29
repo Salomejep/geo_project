@@ -11,7 +11,7 @@ permissions:
 
 # GLOBAL ENV: Only GitHub secrets or constants
 env:
-  ARTIFACTORY_URL: ${{ secrets.ARTIFACT_URL }}
+  ARTIFACTORY_URL: ${{ secrets.ARTIFACTORY_URL }}
   SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
   SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
   AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}
@@ -178,20 +178,17 @@ jobs:
 
       - name: Deploy to JFrog
         env:
-            MAVEN_USERNAME_A: ${{ env.MAVEN_USERNAME_A }}
-            MAVEN_PASSWORD_A: ${{ env.MAVEN_PASSWORD_A }}
+          MAVEN_USERNAME_A: ${{ env.MAVEN_USERNAME_A }}
+          MAVEN_PASSWORD_A: ${{ env.MAVEN_PASSWORD_A }}
         run: |
-            APP_VERSION=$(grep -m2 '<version>' pom.xml | tail -1 | grep -oP '(?<=>).*(?=<)')
-            APP_NAME=$(grep -m2 '<artifactId>' pom.xml | tail -1 | grep -oP '(?<=>).*(?=<)')
-            APP_LONG_NAME=$APP_NAME-$APP_VERSION.jar
+          APP_VERSION=$(grep -m2 '<version>' pom.xml | tail -1 | grep -oP '(?<=>).*(?=<)')
+          APP_NAME=$(grep -m2 '<artifactId>' pom.xml | tail -1 | grep -oP '(?<=>).*(?=<)')
+          APP_LONG_NAME=$APP_NAME-$APP_VERSION.jar
 
-            # ←←← THIS LINE FIXES THE DOUBLE SLASH
-            BASE_URL="${ARTIFACTORY_URL%/}"   # removes trailing slash if present
-
-            echo "Deploying $APP_LONG_NAME to Artifactory..."
-            curl -v --user "$MAVEN_USERNAME_A:$MAVEN_PASSWORD_A" \
-              -T target/$APP_LONG_NAME \
-              -X PUT "$BASE_URL/artifactory/GEOLOCATION-GITHUB_ACTION/$APP_LONG_NAME"
+          echo "Deploying $APP_LONG_NAME to Artifactory..."
+          curl -v --user $MAVEN_USERNAME_A:$MAVEN_PASSWORD_A \
+            -T target/$APP_LONG_NAME \
+            -X PUT "$ARTIFACTORY_URL/artifactory/GEOLOCATION-GITHUB_ACTION/$APP_LONG_NAME"
 
   helm-chart-create:
     name: Create and Upload Helm Chart
